@@ -4,7 +4,7 @@
 
 ### Description
 
-Designed for photographers, this script is an all in one package for casual users and advanced users as well.
+Animations.lua this script is meant to be an all in one comprehensive animation script for photo enthusiasts.
 
 Important: I recommend binding clear tasks to a key `Player >> Clear Tasks`
 
