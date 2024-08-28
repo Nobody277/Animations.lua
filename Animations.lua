@@ -1,12 +1,8 @@
--- Lean, idle and camp, ledge, bench
--- Changelog: Added 51 new animations. Added 8 new scenarios.
--- Changelog: Added back Clear Nearby Peds (Accidentally removed it.) Reworked how the scenarios see the ground should work on objects now.
--- Changelog: Added Clear Tasks for spawned ped. Added "Look At Me" so you can get the ped facing a good direction.
--- Changelog: Added 257 Animal Scenarios in there own submenu. Added 81 animals to spawn. Added a toggle for Ground Detection for scenarios. Added options to spawn animals as well as select their variant. Added ped variant spinner.
+-- Changelog: Improved the Move Left, Right, Forward and Backwards. No Longer assumes the ped is facing North it will always move in the correct direction.
 system.setScriptName('~t5~Animations.lua')
 
 logger.logCustom('<#FF69B4>[<b>Animations.lua: <#FFC0CB>Loaded!</#FF69B4></b><#FF69B4>]')
-notifications.alertInfo("Animations.lua Loaded", "Version: Pre-Release")
+notifications.alertInfo("Animations.lua Loaded", "Version: 1.0")
 
 emote_id = menu.addSubmenu('self', '~t5~Emotes', '')
 scenario_id = menu.addSubmenu('self', '~t5~Scenarios', '')
@@ -24,9 +20,10 @@ local force_rest_scenario = false
 local play_anim_on_scenario = false
 local play_on_spawned_ped = false
 local ground_detection = true
+local play_anim_on_horse = false
+local movement_distance = 0.50
 local spawned_peds = {}
 
--- {anim_dict = "", anim_name = "", name = ""},
 local animations = {
     -- Guns
     {anim_dict = "script_mp@photo_studio@chair_rifles@male", anim_name = "idle_m01", name = "Male Rifle Pose 1"},
@@ -73,6 +70,7 @@ local animations = {
     {anim_dict = "mech_inventory@equip@fallback@base_spin@dual", anim_name = "var_f", name = "Dual Gun Spin Var F"},
     
     -- HorseBack
+    -- The HorseBack Animations 90% of them kick you off your horse so they were very limited.
     --{anim_dict = "mech_inventory@equip@fallback@first_person@unarmed@horseback@longarms_gesture", anim_name = "holster", name = "HorseBack Holster Rifle"},
     --{anim_dict = "mech_inventory@equip@fallback@first_person@unarmed@horseback@longarms_gesture", anim_name = "unholster", name = "HorseBack Unholster Rifle"},
     --{anim_dict = "script_story@fud1@ig@ig_horseback_pointing", anim_name = "right_hand_point_01", name = "HorseBack Point Right"},
@@ -91,6 +89,8 @@ local animations = {
     
     -- Standing and Leaning
     {anim_dict = "amb_player@world_human_lean@wall@high@lean_a@base", anim_name = "base", name = "Lean A"},
+    {anim_dict = "amb_rest_drunk@world_human_lean@railing@back@drinking@male_a@idle_a", anim_name = "idle_c", name = "Lean B"},
+    {anim_dict = "amb_rest_drunk@world_human_lean@railing@drinking@female_b@base", anim_name = "base", name = "Female Lean A"},
     {anim_dict = "script_re@slum_ambush@ig1_woman_leads_to_ambush", anim_name = "enter_ft_prostitute", name = "Leaning Prostitute"},
     {anim_dict = "script_mp@last_round@photos@pair_a", anim_name = "pose4_f_a1", name = "Leaning Back Fence"},
     {anim_dict = "script_mp@last_round@photos@pair_a", anim_name = "pose4_m_a1", name = "Leaning Back Fence 2"},
@@ -120,10 +120,6 @@ local animations = {
     {anim_dict = "mp_lobby@standard@standing@mp_female_f@active_look", anim_name = "active_look", name = "Female Pose 13"},
     {anim_dict = "mp_lobby@standard@standing@mp_female_g@active_look", anim_name = "active_look", name = "Female Pose 14"},
     {anim_dict = "mp_lobby@standard@standing@mp_female_h@active_look", anim_name = "active_look", name = "Female Pose 15"},
-    {anim_dict = "script_mp@photo_studio@chair_rifles@female", anim_name = "idle_f02", name = "Female Pose 16"},
-    {anim_dict = "script_mp@photo_studio@chair_rifles@female", anim_name = "idle_f03", name = "Female Pose 17"},
-    {anim_dict = "script_mp@photo_studio@chair_rifles@female", anim_name = "idle_f04", name = "Female Pose 18"},
-    {anim_dict = "script_mp@photo_studio@chair_rifles@female", anim_name = "idle_f05", name = "Female Pose 19"},
     {anim_dict = "amb_rest_lean@world_human_lean@post@left@moonshine@female_a@base", anim_name = "base", name = "Female Pose 16"},
     {anim_dict = "amb_camp@world_camp_fire_standing@female_a@base", anim_name = "base", name = "Female Pose 17"},
     {anim_dict = "amb_camp@world_camp_fire_standing@female_b@base", anim_name = "base", name = "Female Pose 18"},
@@ -171,6 +167,21 @@ local animations = {
     {anim_dict = "script_mp@photo_studio@fun@female", anim_name = "idle_f07", name = "Female Pose 60"},
     {anim_dict = "script_mp@photo_studio@fun@female", anim_name = "idle_f01", name = "Female Pose 61"},
     {anim_dict = "script_mp@photo_studio@fun@female", anim_name = "idle_f04", name = "Female Pose 62"},
+    {anim_dict = "script_mp@photo_studio@row_staggered", anim_name = "idle_f01", name = "Female Pose 63"},
+    {anim_dict = "script_mp@photo_studio@row_staggered", anim_name = "idle_f02", name = "Female Pose 64"},
+    {anim_dict = "script_mp@photo_studio@row_staggered", anim_name = "idle_f03", name = "Female Pose 65"},
+    {anim_dict = "script_mp@photo_studio@row_staggered", anim_name = "idle_f04", name = "Female Pose 66"},
+    {anim_dict = "script_mp@photo_studio@row_staggered", anim_name = "idle_f06", name = "Female Pose 67"},
+    {anim_dict = "script_mp@photo_studio@row_staggered", anim_name = "idle_f07", name = "Female Pose 68"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_f01", name = "Female Pose 69"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_f02", name = "Female Pose 70"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_f03", name = "Female Pose 71"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_f04", name = "Female Pose 72"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_f05", name = "Female Pose 73"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_f06", name = "Female Pose 74"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_f07", name = "Female Pose 75"},
+    {anim_dict = "script_mp@photo_studio@chair_rifles@female", anim_name = "idle_f02", name = "Female Pose 76"},
+    {anim_dict = "script_mp@photo_studio@chair_rifles@female", anim_name = "idle_f03", name = "Female Pose 77"},
     {anim_dict = "mp_lobby@standard@crouching@mp_female_a@active_look", anim_name = "active_look", name = "Female Sitting Pose 1"},
     {anim_dict = "mp_lobby@standard@crouching@mp_female_b@active_look", anim_name = "active_look", name = "Female Sitting Pose 2"},
     {anim_dict = "mp_lobby@standard@seated@mp_female_a@active_look", anim_name = "active_look", name = "Female Sitting Pose 3"},
@@ -184,6 +195,27 @@ local animations = {
     {anim_dict = "mp_lobby@standard@seated@mp_female_e@skirt@active_look", anim_name = "active_look", name = "Female Sitting Pose 11"},
     {anim_dict = "mp_lobby@standard@seated@mp_female_f@active_look", anim_name = "active_look", name = "Female Sitting Pose 12"},
     {anim_dict = "amb_temp@world_human_seat_steps@female@hands_by_sides@base", anim_name = "base", name = "Female Sitting Pose 13"},
+    {anim_dict = "script_mp@photo_studio@chair_rifles@female", anim_name = "idle_f04", name = "Female Sitting Pose 14"},
+    {anim_dict = "script_mp@photo_studio@chair_rifles@female", anim_name = "idle_f05", name = "Female Sitting Pose 15"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@left@female_a@idle_a", anim_name = "idle_a", name = "Lean Post Left Female 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@left@female_a@idle_b", anim_name = "idle_d", name = "Lean Post Left Female 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@left@female_a@idle_b", anim_name = "idle_f", name = "Lean Post Left Female 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@left@female_a@idle_b", anim_name = "idle_e", name = "Lean Post Left Female 4"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@left@female_a@idle_c", anim_name = "idle_h", name = "Lean Post Left Female 5"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@left@female_a@idle_c", anim_name = "idle_g", name = "Lean Post Left Female 6"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@right@female_a@idle_a", anim_name = "idle_a", name = "Lean Post Right Female 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@right@female_a@idle_a", anim_name = "idle_b", name = "Lean Post Right Female 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@right@female_a@idle_a", anim_name = "idle_c", name = "Lean Post Right Female 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean@railing@female_a@idle_a", anim_name = "idle_a", name = "Lean Railing Female 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean@railing@female_a@idle_d", anim_name = "idle_j", name = "Lean Railing Female 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean@railing@female_b@base", anim_name = "base", name = "Lean Railing Female 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean@railing@right@female_a@idle_a", anim_name = "idle_a", name = "Lean Railing Female 4"},
+    {anim_dict = "amb_rest_lean@world_human_lean@wall@female_a@idle_c", anim_name = "idle_g", name = "Lean Wall Female 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean@wall@female_b@idle_a", anim_name = "idle_b", name = "Lean Wall Female 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean_window_left@female@base", anim_name = "base", name = "Lean Window Left Female 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean_window_left@female@idle_a", anim_name = "idle_b", name = "Lean Window Left Female 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean_window_right@female@base", anim_name = "base", name = "Lean Window Right Female 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean_window_right@female@idle_a", anim_name = "idle_b", name = "Lean Window Right Female 4"},
     
     -- Male Poses
     {anim_dict = "mp_lobby@coop@standing@mp_male_a@active_look", anim_name = "active_look", name = "Male Pose 1"},
@@ -237,6 +269,25 @@ local animations = {
     {anim_dict = "script_mp@photo_studio@fun@male", anim_name = "idle_m05", name = "Male Pose 49"},
     {anim_dict = "script_mp@photo_studio@fun@male", anim_name = "idle_m06", name = "Male Pose 50"},
     {anim_dict = "script_mp@photo_studio@fun@male", anim_name = "idle_m07", name = "Male Pose 51"},
+    {anim_dict = "script_mp@photo_studio@dog@male", anim_name = "idle_m01", name = "Male Pose 52"},
+    {anim_dict = "script_mp@photo_studio@dog@male", anim_name = "idle_m02", name = "Male Pose 53"},
+    {anim_dict = "script_mp@photo_studio@dog@male", anim_name = "idle_m03", name = "Male Pose 54"},
+    {anim_dict = "script_mp@photo_studio@dog@male", anim_name = "idle_m04", name = "Male Pose 55"},
+    {anim_dict = "script_mp@photo_studio@dog@male", anim_name = "idle_m05", name = "Male Pose 56"},
+    {anim_dict = "script_mp@photo_studio@dog@male", anim_name = "idle_m06", name = "Male Pose 57"},
+    {anim_dict = "script_mp@photo_studio@shoot_rifle", anim_name = "idle_f02", name = "Male Pose 58"},
+    {anim_dict = "script_mp@photo_studio@shoot_rifle", anim_name = "idle_f03", name = "Male Pose 59"},
+    {anim_dict = "script_mp@photo_studio@shoot_rifle", anim_name = "idle_f04", name = "Male Pose 60"},
+    {anim_dict = "script_mp@photo_studio@shoot_rifle", anim_name = "idle_f05", name = "Male Pose 61"},
+    {anim_dict = "script_mp@photo_studio@shoot_rifle", anim_name = "idle_f06", name = "Male Pose 62"},
+    {anim_dict = "script_mp@photo_studio@shoot_rifle", anim_name = "idle_f07", name = "Male Pose 63"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_m01", name = "Male Pose 64"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_m02", name = "Male Pose 65"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_m03", name = "Male Pose 66"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_m04", name = "Male Pose 67"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_m05", name = "Male Pose 68"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_m06", name = "Male Pose 69"},
+    {anim_dict = "script_mp@photo_studio@vformation", anim_name = "idle_m07", name = "Male Pose 70"},
     {anim_dict = "mp_lobby@standard@crouching@mp_male_a@active_look", anim_name = "active_look", name = "Male Sitting Pose 1"},
     {anim_dict = "mp_lobby@standard@crouching@mp_male_b@active_look", anim_name = "active_look", name = "Male Sitting Pose 2"},
     {anim_dict = "mp_lobby@standard@seated@mp_male_a@active_look", anim_name = "active_look", name = "Male Sitting Pose 3"},
@@ -245,6 +296,40 @@ local animations = {
     {anim_dict = "mp_lobby@standard@seated@mp_male_d@active_look", anim_name = "active_look", name = "Male Sitting Pose 6"},
     {anim_dict = "mp_lobby@standard@seated@mp_male_e@active_look", anim_name = "active_look", name = "Male Sitting Pose 7"},
     {anim_dict = "mp_lobby@standard@seated@mp_male_f@active_look", anim_name = "active_look", name = "Male Sitting Pose 8"},
+    {anim_dict = "script_mp@photo_studio@dog@male", anim_name = "idle_m07", name = "Male Sitting Pose 9"},
+    {anim_dict = "amb_rest_lean@world_human_lean@bar@read_newspaper@male_d@idle_a", anim_name = "idle_c", name = "Lean on Bar 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean@bar@read_newspaper@male_d@idle_b", anim_name = "idle_f", name = "Lean on Bar 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean@bar@read_newspaper@male_d@idle_b", anim_name = "idle_d", name = "Lean on Bar 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean@bar@read_newspaper@male_d@idle_b", anim_name = "idle_e", name = "Lean on Bar 4"},
+    {anim_dict = "amb_rest_lean@world_human_lean@bar@read_newspaper@male_d@idle_c", anim_name = "idle_h", name = "Lean on Bar 5"},
+    {anim_dict = "amb_rest_lean@world_human_lean@bar@read_newspaper@male_d@idle_c", anim_name = "idle_g", name = "Lean on Bar 6"},
+    {anim_dict = "script_common@shared_scenarios@stand@bar@lean_2_hands@male_a@idle_a", anim_name = "idle_a", name = "Lean on Bar 7"},
+    {anim_dict = "amb_rest_lean@world_human_lean@barrel@read_newspaper@male_a@idle_a", anim_name = "idle_b", name = "Lean back on Bar 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean@barrel@read_newspaper@male_a@idle_a", anim_name = "idle_a", name = "Lean back on Bar 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean@barrel@read_newspaper@male_a@idle_a", anim_name = "idle_c", name = "Lean back on Bar 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@left@hand_planted@male_b@idle_a", anim_name = "idle_b", name = "Lean Post Left Male 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@left@male_a@idle_a", anim_name = "idle_c", name = "Lean Post Left Male 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@left@male_a@idle_a", anim_name = "idle_a", name = "Lean Post Left Male 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@left@male_a@idle_a", anim_name = "idle_b", name = "Lean Post Left Male 4"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@right@hand_planted@male_b@idle_a", anim_name = "idle_b", name = "Lean Post Right Male 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@right@hand_planted@male_b@idle_a", anim_name = "idle_c", name = "Lean Post Right Male 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean@post@right@male_a@idle_a", anim_name = "idle_a", name = "Lean Post Right Male 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean@railing@male_a@idle_a", anim_name = "idle_b", name = "Lean Railing Male 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean@railing@male_b@idle_a", anim_name = "idle_a", name = "Lean Railing Male 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean@railing@male_c@idle_a", anim_name = "idle_a", name = "Lean Railing Male 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean@railing@male_d@idle_a", anim_name = "idle_b", name = "Lean Railing Male 4"},
+    {anim_dict = "amb_rest_lean@world_human_lean_rail@male_a@lean@base", anim_name = "base", name = "Lean Railing Male 5"},
+    {anim_dict = "amb_rest_lean@world_human_lean@wall@male_a@idle_a", anim_name = "idle_a", name = "Lean Wall Male 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean@wall@male_b@base", anim_name = "base", name = "Lean Wall Male 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean@wall@male_c@idle_a", anim_name = "idle_b", name = "Lean Wall Male 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean@wall@male_d@idle_a", anim_name = "idle_b", name = "Lean Wall Male 4"},
+    {anim_dict = "amb_rest_lean@world_human_lean@wall@right@male_b@idle_a", anim_name = "idle_c", name = "Lean Wall Male 5"},
+    {anim_dict = "amb_rest_lean@world_human_lean_window_left@male@base", anim_name = "base", name = "Lean Window Left Male 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean_window_left@male@idle_a", anim_name = "idle_a", name = "Lean Window Left Male 2"},
+    {anim_dict = "amb_rest_lean@world_human_lean_window_right@male@base", anim_name = "base", name = "Lean Window Left Male 3"},
+    {anim_dict = "amb_rest_lean@world_human_lean_window_right@male@idle_a", anim_name = "idle_a", name = "Lean Window Left Male 4"},
+    {anim_dict = "amb_rest_lean@world_human_lean_fence_fwd_check_out_livestock@male_e@idle_a", anim_name = "idle_a", name = "Lean Fence Male 1"},
+    {anim_dict = "amb_rest_lean@world_human_lean_fence_fwd_check_out_livestock@male_f@idle_a", anim_name = "idle_b", name = "Lean Fence Male 2"},
     
     -- Misc
     {anim_dict = "script_re@town_burial@preacher@pose_d@base", anim_name = "base", name = "Standing in silence"},
@@ -300,7 +385,6 @@ local animations = {
     {anim_dict = "amb_misc@world_human_drunk_dancing@male@male_b@idle_b", anim_name = "idle_d", name = "Drunk Dance Male B Idle D"},
 }
 
--- {anim_dict = "", anim_name = "", name = ""},
 local emotes = {
     {emote_hash = 0x39C68938, name = "Flip Off"},
     {emote_hash = 0xA25C7339, name = "Crazy"},
@@ -433,7 +517,7 @@ local scenarios = {
     {scenario = "WORLD_HUMAN_LEAN_BACK_WALL", name = "Lean Back Wall", female = true, male = true},
     {scenario = "WORLD_HUMAN_LEAN_BACK_WALL_SMOKING", name = "Lean Back Smoking", female = true, male = false},
     {scenario = "WORLD_HUMAN_LEAN_BACK_RAILING_DRINKING", name = "Lean Back Railing Drink", female = false, male = true},
-    {scenario = "WORLD_HUMAN_LEAN_RAILING_SMOKING", name = "Lean Railing Smoke Pipe", female = true, male = true},
+    {scenario = "WORLD_HUMAN_LEAN_RAILING_SMOKING", name = "Lean Railing Smoke", female = true, male = true},
     {scenario = "WORLD_HUMAN_LEAN_RAILING_NO_PROPS", name = "Lean Railing", female = true, male = true},
     {scenario = "WORLD_HUMAN_LEAN_RAILING_DYNAMIC", name = "Lean Railing Dynamic", female = false, male = true},
     {scenario = "WORLD_HUMAN_LEAN_RAILING_DRINKING", name = "Lean Railing Drinking", female = false, male = true},
@@ -497,6 +581,7 @@ local scenarios = {
     {scenario = "PROP_HUMAN_SEAT_CRATE_CLEAN_BOOTS", name = "Seat Clean Boots", female = false, male = true},
 
     -- Standing
+    {scenario = "WORLD_HUMAN_FIRE_STAND", name = "Stand Fire", female = true, male = true},
     {scenario = "WORLD_HUMAN_BADASS", name = "Stand Badass", female = false, male = true},
     {scenario = "WORLD_CAMP_FIRE_STANDING", name = "Stand Smoking", female = false, male = true},
     {scenario = "WORLD_HUMAN_FAN", name = "Stand Fan", female = true, male = false},
@@ -558,10 +643,7 @@ local scenarios = {
     {scenario = "PROP_HUMAN_SLEEP_BED_PILLOW_HIGH", name = "Sleep", female = false, male = true},
     {scenario = "WORLD_HUMAN_DANCING", name = "Dance", female = true, male = false},
     {scenario = "WORLD_HUMAN_SLEDGEHAMMER", name = "SledgeHammer", female = false, male = true},
-    {scenario = "WORLD_ANIMAL_WOLF_SITTING", name = "Debug", female = true, male = true},
 }
-
--- {scenario = "", name = "", female = true, male = true},
 
 local animal_animations = {
     {scenario = "WORLD_ANIMAL_BAT_HANGING", name = "Bat Hanging"},
@@ -961,80 +1043,85 @@ local function input_box()
             local input_text = natives.misc_getOnscreenKeyboardResult()
             if input_text and input_text ~= "" then
                 input_text = string.lower(input_text)
-                local found = false
-                local ped = player.getLocalPed()
-                local is_male = natives.ped_isPedMale(ped)
+                if #input_text >= 4 then
+                    local found = false
+                    local ped = player.getLocalPed()
+                    local is_male = natives.ped_isPedMale(ped)
 
-                for _, anim in ipairs(animations) do
-                    if string.lower(anim.name) == input_text then
-                        start_anim(anim.anim_dict, anim.anim_name)
-                        logger.logInfo("Playing Animation: " .. anim.name)
-                        found = true
-                        break
-                    end
-                end
-
-                if not found then
-                    for _, scenario in ipairs(scenarios) do
-                        if string.lower(scenario.name) == input_text and ((is_male and scenario.male) or (not is_male and scenario.female)) then
-                            start_scenario(scenario.scenario)
-                            logger.logInfo("Starting Scenario: " .. scenario.name)
-                            found = true
-                            break
-                        end
-                    end
-                end
-
-                if not found then
-                    for _, emote in ipairs(emotes) do
-                        if string.lower(emote.name) == input_text then
-                            start_emote(emote.emote_hash)
-                            logger.logInfo("Playing Emote: " .. emote.name)
-                            found = true
-                            break
-                        end
-                    end
-                end
-
-                if not found then
-                    for _, anim in ipairs(animal_animations) do
-                        if string.lower(anim.name) == input_text then
-                            start_scenario(anim.scenario)
-                            logger.logInfo("Starting Animal Scenario: " .. anim.name)
-                            found = true
-                            break
-                        end
-                    end
-                end
-
-                if not found then
-                    notifications.alertInfo("Animations.lua", "No animation found. Please see console for search results.")
-                    local suggestions = {}
                     for _, anim in ipairs(animations) do
-                        if string.find(string.lower(anim.name), input_text) then
-                            table.insert(suggestions, anim.name .. " (Animation)")
+                        if string.lower(anim.name) == input_text then
+                            start_anim(anim.anim_dict, anim.anim_name)
+                            logger.logInfo("Playing Animation: " .. anim.name)
+                            found = true
+                            break
                         end
                     end
-                    for _, scenario in ipairs(scenarios) do
-                        if string.find(string.lower(scenario.name), input_text) and ((is_male and scenario.male) or (not is_male and scenario.female)) then
-                            table.insert(suggestions, scenario.name .. " (Scenario)")
+
+                    if not found then
+                        for _, scenario in ipairs(scenarios) do
+                            if string.lower(scenario.name) == input_text and ((is_male and scenario.male) or (not is_male and scenario.female)) then
+                                start_scenario(scenario.scenario)
+                                logger.logInfo("Starting Scenario: " .. scenario.name)
+                                found = true
+                                break
+                            end
                         end
                     end
-                    for _, emote in ipairs(emotes) do
-                        if string.find(string.lower(emote.name), input_text) then
-                            table.insert(suggestions, emote.name .. " (Emote)")
+
+                    if not found then
+                        for _, emote in ipairs(emotes) do
+                            if string.lower(emote.name) == input_text then
+                                start_emote(emote.emote_hash)
+                                logger.logInfo("Playing Emote: " .. emote.name)
+                                found = true
+                                break
+                            end
                         end
                     end
-                    for _, anim in ipairs(animal_animations) do
-                        if string.find(string.lower(anim.name), input_text) then
-                            table.insert(suggestions, anim.name .. " (Animal Scenario)")
+
+                    if not found then
+                        for _, anim in ipairs(animal_animations) do
+                            if string.lower(anim.name) == input_text then
+                                start_scenario(anim.scenario)
+                                logger.logInfo("Starting Animal Scenario: " .. anim.name)
+                                found = true
+                                break
+                            end
                         end
                     end
-                    if #suggestions > 0 then
-                        logger.logInfo("Search Results: " .. table.concat(suggestions, ", "))
-                    else
-                        logger.logError("No matches found for: " .. input_text)
+
+                    if not found then
+                        notifications.alertInfo("Animations.lua", "No animation found. Please see console for search results.")
+                        local suggestions = {}
+                        for _, anim in ipairs(animations) do
+                            if string.find(string.lower(anim.name), input_text) then
+                                table.insert(suggestions, anim.name .. " (Animation)")
+                            end
+                        end
+                        for _, scenario in ipairs(scenarios) do
+                            if string.find(string.lower(scenario.name), input_text) and ((is_male and scenario.male) or (not is_male and scenario.female)) then
+                                table.insert(suggestions, scenario.name .. " (Scenario)")
+                            end
+                        end
+                        for _, emote in ipairs(emotes) do
+                            if string.find(string.lower(emote.name), input_text) then
+                                table.insert(suggestions, emote.name .. " (Emote)")
+                            end
+                        end
+                        for _, anim in ipairs(animal_animations) do
+                            if string.find(string.lower(anim.name), input_text) then
+                                table.insert(suggestions, anim.name .. " (Animal Scenario)")
+                            end
+                        end
+                        if #suggestions > 0 then
+                            logger.logInfo("Search Results: " .. table.concat(suggestions, ", "))
+                        else
+                            logger.logError("No matches found for: " .. input_text)
+                        end
                     end
+                else
+                    logger.logError("Search must be at least 4 characters long.")
+                    notifications.alertDanger("Animations.lua", "Search must be at least 4 characters long.")
                 end
             end
             system.unregisterTick(keyboard_tick)
@@ -1092,7 +1179,7 @@ end)
 
 menu.addDivider('self', 'Misc')
 
-menu.addToggleButton('self', '~t~Walking Animations', '', walking, function(toggle)
+menu.addToggleButton('self', '~t~Walking/Upper Body Animation', '', walking, function(toggle)
     walking = toggle
 end)
 
@@ -1160,15 +1247,59 @@ menu.addToggleButton(advanced_id, 'Play Animations on Scenarios', 'May not work 
     play_anim_on_scenario = toggle
 end)
 
+menu.addButton(advanced_id, 'Look at me', '', function()
+    local ped = player.getLocalPed()
+    if spawned_ped and natives.entity_doesEntityExist(spawned_ped) then
+        natives.task_taskTurnPedToFaceEntity(spawned_ped, ped, 0, 0, 0, 0)
+    end
+    if cloned_ped and natives.entity_doesEntityExist(cloned_ped) then
+        natives.task_taskTurnPedToFaceEntity(cloned_ped, ped, 0, 0, 0, 0)
+    end
+end)
+
+menu.addFloatSpinner(advanced_id, 'Move Distance', '', 0.1, 5.0, 0.1, movement_distance, function(value)
+    movement_distance = value
+end)
+
+function move_ped(direction)
+    local ped = spawned_ped or cloned_ped
+    if not ped or not natives.entity_doesEntityExist(ped) then
+        logger.logError("No active ped to move.")
+        notifications.alertDanger("Animations.lua", "No active ped to move.")
+        return
+    end
+
+    local offsetX, offsetY, offsetZ = 0, 0, 0
+
+    if direction == "forward" then
+        offsetY = movement_distance
+    elseif direction == "backward" then
+        offsetY = -movement_distance
+    elseif direction == "right" then
+        offsetX = movement_distance
+    elseif direction == "left" then
+        offsetX = -movement_distance
+    end
+
+    local x, y, z = natives.entity_getOffsetFromEntityInWorldCoords(ped, offsetX, offsetY, -1)
+
+    natives.entity_setEntityCoords(ped, x, y, z, false, false, false, false)
+end
+
+menu.addButton(advanced_id, 'Move Forward', '', function() move_ped('forward') end)
+menu.addButton(advanced_id, 'Move Backward', '', function() move_ped('backward') end)
+menu.addButton(advanced_id, 'Move Left', '', function() move_ped('left') end)
+menu.addButton(advanced_id, 'Move Right', '', function() move_ped('right') end)
+
 menu.addDivider(advanced_id, 'Spawner')
 
-local ped_model_names = {"Arthur", "Female", "Female 2", "Female 3", "Fancy Female", "Fancy Female 2", "Turtle Priest", "Blind Man", "Cave Hermit", "Dutch", "Robot", "Male", "Well Dressed Man", "Well Dressed Man 2", } -- 153
-local ped_models = {0x0D7114C9, 0x2B769669, 0xD29F17B9, 0x39456FEE, 0x596AA7B, 0xF3178A28, 0x19ACF207, 0x2E6B8F33, 0x74B53CC, 0x73E82274, 0x3BF7829E, 0xCF10E769, 0xD303ACD2, 0x9EDFC6EB}
+local ped_model_names = {"Arthur", "Abe", "Aberdeenpig Farmer", "Aberdeen Sister", "Abigail Roberts", "Acrobat", "Adam Gray", "Agnes Dowd", "Albert Cake Esquire", "Albert Mason", "Anders Helgerson", "Angel", "Angry Husband", "Angus Geddes", "Ansel Atherton", "Antony Foremen", "Archer Fordham", "Archibald Jameson", "Archie Down", "Art Appraiser", "ASB Deputy 01", "Ashton", "Balloon Operator", "Band Bassist", "Band Drummer", "Band Pianist", "Band Singer", "Baptiste", "Bartholomew Braithwaite", "Bathing Ladies 01", "Beaten Up Captain", "Beau Gray", "Bill Williamson", "BIV Coach Driver", "BLW Photographer", "BLW Witness", "Braithwaite Butler", "Braithwaite Maid", "Braithwaite Servant", "Brenda Crawley", "Bronte", "Bronte's Butler", "Brother Dorkins", "Brynn Tildon", "Bubba", "Cabaret MC", "Cajun", "Can Can Man 01", "Can Can 01", "Can Can 02", "Can Can 03", "Can Can 04", "Captain Monroe", "Cassidy", "Catherine Braithwaite", "Cattle Rustler", "Cave Hermit", "Chain Prisoner 01", "Chain Prisoner 02", "Charles Smith", "Chelonian Master", "Cig Card Guy", "Clay", "Cleet", "Clive", "Col Favours", "Colm O'Driscoll", "Cooper", "Cornwall Train Conductor", "Crackpot Inventor", "Crackpot Robot", "Creepy Old Lady", "Creole Captain", "Creole Doctor", "Creole Guy", "Dale Maroney", "Davey Callender", "David Geddes", "Desmond", "Didsbury", "Dino Bones Lady", "Disguised Duster 01", "Disguised Duster 02", "Disguised Duster 03", "Doroethea Wicklow", "Dr. Higgins", "Dr. Malcolm MacIntosh", "Duncan Geddes", "Duster Informant 01", "Dutch", "Eagle Flies", "Edgar Ross", "Edith Down", "Edith John", "Edmund Lowry", "Escape Artist", "Escape Artist Assistant", "Evelyn Miller", "Ex Confed Informant", "Ex Confeds Leader 01", "Exotic Collector", "Famous Gunslinger 01", "Famous Gunslinger 02", "Famous Gunslinger 03", "Famous Gunslinger 04", "Famous Gunslinger 05", "Famous Gunslinger 06", "Featherston Chambers", "Feats of Strength", "Fight Ref", "Fire Breather", "Fish Collector", "Forgiven Husband 01", "Forgiven Wife 01", "Formy Art Big Woman", "Francis Sinclair", "French Artist", "Frenchman 01", "Fussar", "Gareth Braithwaite", "Gavin", "Gen Story Female", "Gen Story Male", "Gerald Braithwaite", "German Daughter", "German Father", "German Mother", "German Son", "Gilbert Knightly", "Gloria", "Grizzled Jon", "Guido Martelli", "Hamish", "Hector Fellowes", "Henri Lemieux", "Herbalist", "Hercule", "Heston Jameson", "Hobart Crawley", "Hosea Matthews", "Ian Gray", "Jack Marston", "Jack Marston Teen", "Jamie", "Janson", "Javier Escuella", "Jeb", "Jim Calloway", "Jock Gray", "Joe", "Joe Butler", "John Marston", "John The Baptising Madman", "John Weathers", "Josiah Trelawny", "Jules", "Karen", "Karen's John 01", "Kieran", "Laramie", "Leigh Gray", "Lemiux Assistant", "Lenny", "Leon", "Leo Strauss", "Levi Simon", "Leviticus Cornwall", "Lillian Powell", "Lilly Millet", "Londonderry Son", "Luca Napoli", "Magnifico", "Mama Watson", "Marshall Thurwell", "Mary Beth", "Mary Linton", "Meditating Monk", "Meredith", "Meredith's Mother", "Micah Bell", "Micah's Nemesis", "Mickey", "Milton Andrews", "Miss Marjorie", "Mixed Race Kid", "Moira", "Molly O'Shea", "Alfredo Montez", "Allison", "Amos Lansing", "Bonnie", "Bounty Hunter", "Camp Cook", "Cliff", "Cripps", "Grace Lancing", "Hans", "Henchman", "Horley", "Jeremiah Shaw", "Jessica", "Jorge Montez", "Langston", "Lee", "Mabel", "Marshall Davies", "Moonshiner", "Mr. Adller", "Old Man Jones", "Revenge Marshall", "Samson Finch", "Shaky", "Sheriff Freeman", "Teddy Brown", "Terrance", "The Boy", "Travelling Saleswoman", "Went", "Mr. Adller", "Mr. Devon", "Mr. Linton", "Mr. Pearson", "Mrs. Adller", "Mrs. Fellows", "Mrs. Geddes", "Mrs. Londonderry", "Mrs. Weathers", "Mrs. Calhoun", "Mrs. Sinclair", "Mr. Wayne", "Mud2 Big Guy", "Mysterious Stranger", "NBX Drunk", "NBX Executed", "NBX Police Chief Formal", "NBX Receptionist 01", "Nial Whelan", "Nicholas Timmins", "Nils", "Norris Forsythe", "Obediah Hinton", "Oddfellow Spinhead", "OD Prostitute", "Opera Singer", "Paytah", "Penelope Braithwaite", "Pinkerton Goon", "Poison Well Shaman", "Poor Joe", "Priest Wedding", "Princess Isabeau", "Professor Bell", "Rains Fall", "Ramon Cortez", "Reverend Fortheringham", "Rev Swanson", "Rhode Deputy 01", "Rhode Deputy 02", "Rhodes Assistant", "Rhodes Kidnap Victim", "Rhodes Saloon Bouncer", "Ring Master", "Rocky Seven Widow", "Samaritan", "Scott Gray", "SD Doctor 01", "SD Priest", "SD Saloon Drunk 01", "SD Street Kid Thief", "SD Street Kid 01", "SD Street Kid 01A", "SD Street Kid 01B", "SD Street Kid 02", "Sean", "Sheriff Freeman", "Sheriff Owens", "Sister Calderon", "Slave Catcher", "Soothsayer", "Strawberry Outlaw 01", "Strawberry Outlaw 02", "STR Deputy 01", "STR Deputy 02", "STR Sheriff 01", "Sun Worshipper", "Susan Grimshaw", "Swamp Freak", "Swamp Weirdo Sonny", "Sword Dancer", "Tavish Gray", "Taxidermist", "Theodore Levin", "Thomas Down", "Tiger Handler", "Tilly", "Timothy Donahue", "Tiny Hermit", "Tom Dickens", "Town Crier", "Treasure Hunter", "Twin Brother 01", "Twin Brother 02", "Twin Groupie 01", "Twin Groupie 02", "Uncle", "Uniduster Jail 01", "Val Auction Boss 01", "Val Deputy 01", "Val Praying Man", "Val Prostitute 01", "Val Prostitute 02", "Val Sheriff", "Vampire", "VHT Bath Girl", "Wapiti Boy", "War Vet", "Watson 01", "Watson 02", "Watson 03", "Welsh Fighter", "Winton Holmes", "Wrobel"}
+local ped_models = {0x0D7114C9, 0xA8B1C9F7, 0xAB6C83B9, 0x78F9C32F, 0xEED46B48, 0x582954CA, 0x6A7308E5, 0x0596AA7B, 0x28E45219, 0x1E9A4722, 0x19ACF207, 0x31DC5CD8, 0x17F33DAA, 0xF5FE5824, 0x563E79E7, 0xCADCA094, 0x328BA546, 0x7920404D, 0xF8BAA439, 0x5FA98D21, 0x1B703333, 0xB6AC4FC1, 0x253EF371, 0x3C3844C4, 0x559E17B2, 0x8EA36E09, 0xF3178A28, 0xF3C61748, 0xFB614B3F, 0xD29F17B9, 0xFCAF1AFE, 0x4B780F88, 0x7B67B26A, 0xDF333F2B, 0x1AA22618, 0x4D3B6EF2, 0xDFE6F4B8, 0xEB20D71E, 0x1C76CA2D, 0x0DBD6C20, 0x90C94DCD, 0xD18A3207, 0x1CC577E5, 0x0AF97379, 0xD012554C, 0x5411589F, 0xF344B612, 0x2D0C353F, 0xD0C13881, 0x2F5D75D4, 0xBD791211, 0x12DABCCF, 0x4EB9996F, 0x2E6B8F33, 0x5262264D, 0x5F1AD166, 0x074B53CC, 0x8451929D, 0xF367F0C8, 0x53DD98DF, 0x34F835DE, 0xD303ACD2, 0xDBCB9834, 0xE44D789F, 0xFF292AA4, 0x0E174AF7, 0xCF10E769, 0x72A3A733, 0xC43EAC49, 0x4BBF80D3, 0x3BF7829E, 0xC061B459, 0xD163B76B, 0x3B38C996, 0x96C421E4, 0x16C57A26, 0x65A7F0E7, 0x9EAF0DAE, 0x66E939A1, 0x8ACCB671, 0x4AB3D571, 0x32C998FD, 0x5888E47B, 0x4A3D47E4, 0x0748A3DA, 0xF45739BF, 0xC8245F3C, 0x9FC15494, 0xA02C1ADB, 0x73E82274, 0x9660A42D, 0xFD38D463, 0xE52A1621, 0xCB790850, 0x58672CFB, 0x88A17BE6, 0x929C4793, 0x2C4CA0A0, 0xF0EAC712, 0x11E95A0F, 0x59D39598, 0xFA274E38, 0x504E7A85, 0xDEBB9761, 0x14F583D4, 0x236820B9, 0x79B7CD5F, 0x8D374040, 0x8D6618C3, 0x53308B76, 0xEADD5782, 0x5A3FC29E, 0x61F3D8F8, 0xD36D9790, 0xB4449A8A, 0x9634D7B5, 0xD809F182, 0xF258BC07, 0x8D883B70, 0x968AB03C, 0x4C5C60B2, 0x3CCC99B1, 0xD9E8B86A, 0xBB35418E, 0x39FD28AE, 0x5205A246, 0x771EA179, 0x0D5EB39A, 0xE1B35B43, 0x9B5487C9, 0xBDB43F31, 0x9EDFC6EB, 0x6D084810, 0x6D8B4BB9, 0x30324925, 0x0C60474A, 0x4C165ECF, 0xA560451D, 0xB0C337A3, 0x490733E8, 0x88094B37, 0x71F7EE1B, 0xDA5990BC, 0x004C2AF4, 0xD2E125B6, 0x6DE3800C, 0x5548F1E9, 0x6C30159E, 0x9DE34628, 0xE569265F, 0x54951099, 0x05B6D06D, 0x442FBDDC, 0x7D357931, 0x3BFD7D5D, 0xB4F83876, 0x9A3E29FB, 0x013504F0, 0x739BA0D6, 0xBFD90AEA, 0x97F8823A, 0x3AEDE260, 0xF8AE5F8D, 0xC91ADF62, 0xFA0312B3, 0x4D24C49A, 0x8A1FCA47, 0x19686DFA, 0x55C7D09F, 0x4DBE35B8, 0x77435EF1, 0x5F5942DD, 0x4B6ECAEF, 0x3940877D, 0x9B37429C, 0x3EA5B5BC, 0xF04DEE7E, 0xC0321438, 0x3112E4AC, 0xDE361D65, 0xE2D294AB, 0xA1DFB431, 0x01004B26, 0x859CBAAC, 0xFBBC94C6, 0x9BAAB546, 0xEB55C35E, 0x4C4448BA, 0x931F01E5, 0x30E034CA, 0x39456FEE, 0x892944C5, 0x9F7769F3, 0xEADDA26C, 0x1DD24709, 0x2CDA4B15, 0x893E6E25, 0xDAB77DF1, 0x4BFBF802, 0x2EDEF9ED, 0x6B759DBB, 0x8BF81D72, 0x9A00FB76, 0x75DCACF2, 0xB93CB429, 0xE24327D2, 0x65C51599, 0xA3261C0D, 0xE87FE55D, 0x4549CCA0, 0xE757DE29, 0x9A3713AD, 0x28AE1CF3, 0xBB202735, 0xB36FBE5E, 0x04B479C0, 0xE20455E9, 0xB496E3FB, 0xAB270CC9, 0xA89E5746, 0xEFBFEDB1, 0x3AAAB060, 0x155E51DB, 0x2AB79B76, 0xEFC21975, 0x5187C29B, 0xFEFB81C0, 0x4481AEDF, 0x62C1389E, 0x41A0B3F7, 0x84490A12, 0xF65EE3E1, 0x753590C4, 0x79AEBA08, 0xC19649AA, 0xC175E70A, 0xB304BB4D, 0x4995C0A5, 0x031076F6, 0xB4B65231, 0x04156A73, 0xA91215CD, 0x62589584, 0x5B00992C, 0xBC537EB7, 0x8617AB88, 0xA06649D4, 0x2E258627, 0x19E97506, 0xDD5F0343, 0x89F94DED, 0x7E1809E8, 0x85FE1E48, 0x7CF95C98, 0x656E59CC, 0x60713474, 0xC7BB68D5, 0x583389C7, 0x774AB298, 0x0F23E138, 0x7FA4ED12, 0x772D9802, 0xF79A7EC2, 0xF0297311, 0xCF75E336, 0xCF12BFF0, 0xE4E66C41, 0x6DC2F2F2, 0x0F274F72, 0xEEB2E5FD, 0x678E7CA0, 0x32541234, 0x6EF76684, 0xE0D7A2B2, 0xC192917D, 0xCEE81C27, 0x839CCCAC, 0xE9B80099, 0x51C80EFD, 0x4B7EAC47, 0x99D4C8F2, 0xA792AF18, 0xDDD99BA5, 0x83E7B7BB, 0x196D5830, 0x6509A069, 0xA9A328D5, 0x87A4C0B9, 0x9654DDCF, 0x53E86B71, 0x21914E41, 0x49644A6F, 0x03DFFD04, 0xD690782C, 0x3DE6A545, 0x8868C876, 0x8853FF79, 0xBABFD910, 0x13458A93, 0x3AF591E8, 0x361005DD, 0xA49B62BA, 0xFD3C2696, 0xEB8B8335, 0xC63726DF, 0x87EF0B8D, 0x70BEBBCF, 0x6C07EC33, 0x4124A908, 0x3A643444, 0x2B769669, 0x8FB23370, 0xD95BCB7D, 0x36781BAC, 0xFB0A7382, 0x9C0C8EE9, 0x69439F09, 0x8C16E4AF, 0x44EFD66E, 0x02E86DB1, 0x03387076, 0xBE52968B}
 
-local model_index = 1
+local ped_model_index = 1
 
-menu.addStringSpinner(advanced_id, 'Ped Model', '', model_index - 1, ped_model_names, function(value_idx)
-    model_index = value_idx + 1
+menu.addStringSpinner(advanced_id, 'Ped Model', '', ped_model_index - 1, ped_model_names, function(value_idx)
+    ped_model_index = value_idx + 1
 end)
 
 local ped_variant_index = 0
@@ -1177,7 +1308,7 @@ menu.addIntSpinner(advanced_id, 'Ped Variant', '', 0, 300, 1, ped_variant_index,
     ped_variant_index = value
 end)
 
-menu.addButton(advanced_id, 'Spawn Ped', '', function()
+function spawn_ped()
     if not spawned_ped or not natives.entity_doesEntityExist(spawned_ped) then
         if cloned_ped and natives.entity_doesEntityExist(cloned_ped) then
             logger.logError("A cloned ped already exists.")
@@ -1185,7 +1316,7 @@ menu.addButton(advanced_id, 'Spawn Ped', '', function()
             return
         end
         local x, y, z = player.getLocalPedCoords()
-        local model_hash = ped_models[model_index]
+        local model_hash = ped_models[ped_model_index]
         spawned_ped = spawner.spawnPed(model_hash, x, y, z, true)
         table.insert(spawned_peds, spawned_ped)
         natives.task_taskSetBlockingOfNonTemporaryEvents(spawned_ped, true)
@@ -1206,15 +1337,13 @@ menu.addButton(advanced_id, 'Spawn Ped', '', function()
         natives.ped_setPedCombatAttributes(spawned_ped, 38, true)
         utility.autoBlockControlRequests(spawned_ped, true)
         natives.ped_equipPedOutfitPreset(spawned_ped, ped_variant_index, false)
-        if not spawned_ped or not natives.entity_doesEntityExist(spawned_ped) then
-            logger.logError("Failed to spawn ped.")
-            notifications.alertDanger("Animations.lua", "Failed to spawn ped.")
-        end
     else
         logger.logError("A spawned ped already exists.")
         notifications.alertDanger("Animations.lua", "A spawned ped already exists.")
     end
-end)
+end
+
+menu.addButton(advanced_id, 'Spawn Ped', '', spawn_ped)
 
 local animal_model_names = {"California Condor", "Bat", "California ParaKeet", "Crow", "Sparrow", "Chicken", "Duck", "Eagle", "Canadian Goose", "Heron", "Owl", "Parrot", "Pelican", "Pigeon", "Quail", "Seagull", "Rooster", "Wild Turkey", "Turkey 1", "Turkey 2", "Vulture", "Woodpecker", "BlueGill", "Catfish", "Large Catfish", "Pickerel", "Sturgeon", "Large Bass", "Bass", "Badger", "Bear", "Black Bear", "Beaver", "Cougar", "Lion", "Panther", "Boar", "Giant Boar", "Buck", "Buffalo", "Bull", "Cat", "Cow", "Coyote", "Deer", "American Fox Hound", "Australian Sheperd", "Bluetick Coonhound", "Catahoula Cur", "Chesbay Retriever", "Border Collie", "Hobo Dog", "Hound Dog", "Husky", "Labrador", "Lion Dog", "Poodle", "Rufus", "Street Dog", "Elk", "Donkey", "Fox", "Goat", "Horse", "Moose", "Muskrat", "Ox", "Pig", "Glowing Possum", "Possum", "Glowing Rabbit", "Rabbit", "Raccoon", "Ram", "Rat", "Sheep", "Skunk", "Squirrel", "Wolf Large", "Wolf Medium", "Wolf Small"}
 local animal_models = {0x47E1D597, 0x28308168, 0x681E834B, 0x5DF8F2C, 0xC2B75D41, 0x8506531D, 0xC42E08CB, 0x57027587, 0x2B1B02CA, 0x41462AB0, 0xCCA5E0B0, 0x94DD14B8, 0x4B751E5C, 0x06A20728, 0x7D7ED3F4, 0xF62ADA90, 0x789C821E, 0x881F1C91, 0xE438917C, 0xF61A353F, 0x41D8593C, 0x2B7AD8CD, 0x6F4C2A6C, 0x29F1CB9D, 0x5BAEE06E, 0xB97D1BFD, 0xEE111F34, 0x1BA2A2E8, 0x750FD65, 0xBA41697E, 0xBCFD0E7F, 0x2B845466, 0x2D4B3F63, 0x056154F7, 0xC68B3C66, 0x629DDF49, 0xE8CBC01C, 0xDE99DA6D, 0x9770DD23, 0x5CC5E869, 0x0BAA25A3, 0x573201B8, 0xFCFA9E1E, 0x1CA6B883, 0x423417A7, 0x40E01848, 0xAE6C236C, 0x2552B009, 0xC25FE171, 0xE8C446CB, 0x40D2BCBC, 0xC5C5D255, 0x801131EF, 0x62F7C1B3, 0xAD779EB4, 0xCA89FC80, 0x40CAC0E7, 0x5EDF32B4, 0x3B313FCE, 0x87895317, 0x69A37A7B, 0xF0F6D94, 0xD3105A6D, 0x8AF8EE20, 0xBE871B28, 0xBC61ABDD, 0x21294FD8, 0x3C0BFE72, 0xDECED2FD, 0xABA8FB1F, 0xF4EA3B49, 0xDFB55C81, 0x56EF91BF, 0xA27F49A3, 0x3AFD2922, 0x02679F5C, 0xB7C8F704, 0x5758D069, 0xBBD91DDA, 0xCB391381, 0xCE924A27}
@@ -1231,7 +1360,7 @@ menu.addIntSpinner(advanced_id, 'Animal Variant', '', 0, 300, 1, variant_index, 
     variant_index = value
 end)
 
-menu.addButton(advanced_id, 'Spawn Animal', '', function()
+function spawn_animal()
     if not spawned_ped or not natives.entity_doesEntityExist(spawned_ped) then
         if cloned_ped and natives.entity_doesEntityExist(cloned_ped) then
             logger.logError("A cloned ped already exists.")
@@ -1260,15 +1389,78 @@ menu.addButton(advanced_id, 'Spawn Animal', '', function()
         natives.ped_setPedCombatAttributes(spawned_ped, 38, true)
         utility.autoBlockControlRequests(spawned_ped, true)
         natives.ped_equipPedOutfitPreset(spawned_ped, variant_index, false)
-        if not spawned_ped or not natives.entity_doesEntityExist(spawned_ped) then
-            logger.logError("Failed to spawn animal.")
-            notifications.alertDanger("Animations.lua", "Failed to spawn animal.")
-        end
     else
-        logger.logError("An animal is already spawned.")
-        notifications.alertDanger("Animations.lua", "An animal is already spawned.")
+        logger.logError("An animal has already been spawned.")
+        notifications.alertDanger("Animations.lua", "An animal has already been spawned.")
     end
-end)
+end
+
+menu.addButton(advanced_id, 'Spawn Animal', '', spawn_animal)
+
+local function input_box_for_spawning()
+    natives.misc_displayOnscreenKeyboard(0, "", "", "", "", "", "", 255)
+
+    local function keyboard_tick()
+        local status = natives.misc_updateOnscreenKeyboard()
+        if status == 1 then
+            local input_text = natives.misc_getOnscreenKeyboardResult()
+            if input_text and input_text ~= "" then
+                input_text = string.lower(input_text)
+                local found = false
+
+                if spawned_ped and natives.entity_doesEntityExist(spawned_ped) or cloned_ped and natives.entity_doesEntityExist(cloned_ped) then
+                    logger.logError("A ped or clone is already active. Please remove before spawning another.")
+                    notifications.alertDanger("Animations.lua", "ERROR: A ped or clone is already active.")
+                    system.unregisterTick(keyboard_tick)
+                    return
+                end
+
+                local suggestions = {}
+                for idx, name in ipairs(ped_model_names) do
+                    if string.lower(name) == input_text then
+                        ped_model_index = idx
+                        spawn_ped()
+                        found = true
+                        break
+                    elseif string.find(string.lower(name), input_text) then
+                        table.insert(suggestions, name)
+                    end
+                end
+
+                if not found then
+                    for idx, name in ipairs(animal_model_names) do
+                        if string.lower(name) == input_text then
+                            model_index = idx
+                            spawn_animal()
+                            found = true
+                            break
+                        elseif string.find(string.lower(name), input_text) then
+                            table.insert(suggestions, name)
+                        end
+                    end
+                end
+
+                if not found then
+                    if #suggestions > 0 then
+                        notifications.alertInfo("Animations.lua", "No ped found. Please see console for search results.")
+                        logger.logInfo("Search Results: " .. table.concat(suggestions, ", "))
+                    else
+                        logger.logError("No matches found for: " .. input_text)
+                        notifications.alertInfo("Animations.lua", "ERROR: No matching ped or animal name found.")
+                    end
+                end
+            end
+            system.unregisterTick(keyboard_tick)
+        elseif status == 2 or status == 3 then
+            logger.logError("Keyboard was canceled or an error occurred.")
+            system.unregisterTick(keyboard_tick)
+        end
+    end
+
+    system.registerTick(keyboard_tick)
+end
+
+menu.addButton(advanced_id, "Manual Input Spawn", "", input_box_for_spawning)
 
 menu.addButton(advanced_id, 'Clone Ped', '', function()
     if not cloned_ped or not natives.entity_doesEntityExist(cloned_ped) then
@@ -1339,8 +1531,26 @@ menu.addButton('player', 'Clone Ped', '', function(player_idx)
     end
 end)
 
-menu.addToggleButton(advanced_id, 'Play Anims on Spawned Ped', '', play_on_spawned_ped, function(toggle)
+menu.addToggleButton(advanced_id, 'Play Animations on Spawned Ped', '', play_on_spawned_ped, function(toggle)
     play_on_spawned_ped = toggle
+end)
+
+menu.addToggleButton(advanced_id, 'Play Animations on Horse', '', play_anim_on_horse, function(toggle)
+    play_anim_on_horse = toggle
+    local player_ped = player.getLocalPed()
+    if play_anim_on_horse then
+        local current_horse = natives.ped_isPedOnMount(player_ped) and natives.ped_getMount(player_ped) or natives.ped_getLastMount(player_ped)
+        if current_horse and natives.entity_doesEntityExist(current_horse) then
+            spawned_ped = current_horse
+        else
+            logger.logError("No horse found.")
+            notifications.alertDanger("Animations.lua", "No horse found.")
+            play_anim_on_horse = false
+            if not play_on_spawned_ped then
+                spawned_ped = nil
+            end
+        end
+    end
 end)
 
 menu.addButton(advanced_id, 'Teleport Ped to Me', '', function()
@@ -1365,22 +1575,17 @@ menu.addButton(advanced_id, 'Teleport Me to Ped', '', function()
     end
 end)
 
+menu.addButton(advanced_id, 'Next Ped', 'This will clear the current ped reference so a new one can be spawned.', function()
+    spawned_ped = nil
+    cloned_ped = nil
+end)
+
 menu.addButton(advanced_id, 'Clear Tasks for Spawned Ped', '', function()
     if spawned_ped and natives.entity_doesEntityExist(spawned_ped) then
         natives.task_clearPedTasks(spawned_ped, true, true)
     end
     if cloned_ped and natives.entity_doesEntityExist(cloned_ped) then
         natives.task_clearPedTasks(cloned_ped, true, true)
-    end
-end)
-
-menu.addButton(advanced_id, 'Look at me', '', function()
-    local ped = player.getLocalPed()
-    if spawned_ped and natives.entity_doesEntityExist(spawned_ped) then
-        natives.task_taskTurnPedToFaceEntity(spawned_ped, ped, 0, 0, 0, 0)
-    end
-    if cloned_ped and natives.entity_doesEntityExist(cloned_ped) then
-        natives.task_taskTurnPedToFaceEntity(cloned_ped, ped, 0, 0, 0, 0)
     end
 end)
 
