@@ -80,7 +80,7 @@ Lua Devs can interact with the community, discuss features, and collaborate on p
 You can download Animations.lua from one of the following sources:
 - [Github Releases](https://github.com/Nobody277/Animations.lua/releases)
 - [Fortitude Script Corral](https://discord.gg/7AKbaUfsjy)
-- [Fortitude Discord server](https://discord.gg/fortitudemod)
+- [Fortitude Discord Server](https://discord.gg/fortitudemod)
 - [Fortitude Library](https://fortitudemod.com/dashboard/library)
 
 ### Installing the Script
