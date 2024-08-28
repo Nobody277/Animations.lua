@@ -4,6 +4,9 @@
 
 Designed for photographers, this script is an all in one package for casual users and advanced users as well.
 
+Important: I recommend binding clear tasks to a key `Player >> Clear Tasks`
+
+
 ### Features
 
 - 116 Emotes
