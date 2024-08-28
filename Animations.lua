@@ -1,4 +1,3 @@
--- Changelog: Improved the Move Left, Right, Forward and Backwards. No Longer assumes the ped is facing North it will always move in the correct direction.
 system.setScriptName('~t5~Animations.lua')
 
 logger.logCustom('<#FF69B4>[<b>Animations.lua: <#FFC0CB>Loaded!</#FF69B4></b><#FF69B4>]')
