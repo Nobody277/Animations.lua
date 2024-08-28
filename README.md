@@ -71,6 +71,7 @@ Important: I recommend binding clear tasks to a key `Player >> Clear Tasks`
 - Play Animations on spawned ped: If you spawn a ped and want the ped to do an animation or scenario or nearby scenaro you need to toggle this first.
 - Play Animations on horse: If you want to play animations on your horse you will need to toggle this and "Play Animations on spawned ped" this will look for your active mount either the one you are riding when you toggle it on or the one you have previously riden.
 - Next Ped: This will clear the current ped reference so if you have a spawned ped and want to spawn another one you will need to click this first.
+- The script is setup so if you are playing as a female character it will only show Scenarios females can play same thing for Males.
 
 ## Discord Community
 
