@@ -2,7 +2,7 @@
 
 ### Description
 
-Designed for photographers, this script simplifies the arranging of scenarios and animations, making any image possible. It has all the simple features and an advanced section for those who want the perfect photo.
+Designed for photographers, this script is an all in one package for casual users and advanced users as well.
 
 ### Features
 
