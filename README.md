@@ -1,5 +1,7 @@
 # Animations.lua
 
+![Animations.lua Logo](https://github.com/Nobody277/Animations.lua/blob/main/Animations.lua.png)
+
 ### Description
 
 Designed for photographers, this script is an all in one package for casual users and advanced users as well.
